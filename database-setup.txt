@@ -11,3 +11,16 @@ CREATE TABLE Staff (
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL
 );
+
+CREATE TABLE Queue (
+    queue_id INT PRIMARY KEY,
+    queue_number INT,
+    student_number INT,
+    staff_number INT,
+    question VARCHAR(255),
+    request_time TIME,
+    assign_time TIME,
+    finish_time TIME,
+    FOREIGN KEY (student_number) REFERENCES Students(student_number),
+    FOREIGN KEY (staff_number) REFERENCES Staff(staff_number)
+);
