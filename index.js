@@ -165,3 +165,65 @@ async function addStudent(studentnum, name, email, password) {
     }
   }
 }
+
+// POST Listener: Join Queue
+app.post('/api/joinqueue', async (req, res) => {
+  const {userEmail, studentQuestion} = req.body;
+
+  try {
+    const addToQueueResult = await addToQueue(userEmail, studentQuestion);
+
+    if (addToQueueResult) {
+      res.status(200).json(
+        {message: "Join Successful: You've been added into the queue!"}
+      );
+    } else {
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+        errorCode: "SERVER_ERROR"
+      });
+    }
+    console.log("HIYA"); // TODO
+  } catch (error) {
+    console.error("Error during office hour joining process", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      errorCode: "SERVER_ERROR"
+    });
+    throw err;
+  }
+});
+
+async function addToQueue(studentEmail, studentQuestion) {
+  let connection;
+  try {
+    // Establish the database connection first
+    connection = await mysql.connectDatabase();
+
+    // Get the student number using the verify user method
+    const userInfo = await verifyUser(studentEmail, false);
+    const studentNumber = userInfo.userInfo[0].student_number;
+
+    // From the database, get the highest queue number atm
+    const findHighestQueueNumQuery = "SELECT MAX(queue_number) AS highest_queue_number FROM Queue;";
+    const [findHighestQueueNumResult] = await connection.execute(findHighestQueueNumQuery);
+
+    const highestQueueNumber = findHighestQueueNumResult[0]?.highest_queue_number || 0;
+    console.log("Highest Queue Number:", highestQueueNumber);
+
+    // Send the data to the database
+    const insertQueueQuery = "INSERT INTO Queue (queue_number, student_number, question, request_time) VALUES (?, ?, ?, NOW())";
+    const [insertQueueResult] = await connection.execute(insertQueueQuery, [highestQueueNumber + 1, studentNumber, studentQuestion]);
+
+    return insertQueueResult.affectedRows == 1;
+  } catch (err) {
+    console.error('Error during adding student into OH queue:', err);
+    throw err;
+  } finally {
+    if (connection) {
+      await mysql.disconnectDatabase(connection);
+    }
+  }
+}
