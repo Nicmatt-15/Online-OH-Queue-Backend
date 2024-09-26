@@ -174,9 +174,13 @@ app.post('/api/joinqueue', async (req, res) => {
     const addToQueueResult = await addToQueue(userEmail, studentQuestion);
 
     if (addToQueueResult) {
-      res.status(200).json(
-        {message: "Join Successful: You've been added into the queue!"}
-      );
+      // Retrieve the updated OH queue
+      const retrieveLatestQueueResult = await retrieveLatestQueue();
+
+      res.status(200).json({
+        message: "Join Successful: You've been added into the queue!",
+        queue: retrieveLatestQueueResult
+      });
     } else {
       res.status(500).json({
         success: false,
@@ -184,7 +188,6 @@ app.post('/api/joinqueue', async (req, res) => {
         errorCode: "SERVER_ERROR"
       });
     }
-    console.log("HIYA"); // TODO
   } catch (error) {
     console.error("Error during office hour joining process", err);
     res.status(500).json({
@@ -211,7 +214,6 @@ async function addToQueue(studentEmail, studentQuestion) {
     const [findHighestQueueNumResult] = await connection.execute(findHighestQueueNumQuery);
 
     const highestQueueNumber = findHighestQueueNumResult[0]?.highest_queue_number || 0;
-    console.log("Highest Queue Number:", highestQueueNumber);
 
     // Send the data to the database
     const insertQueueQuery = "INSERT INTO Queue (queue_number, student_number, question, request_time) VALUES (?, ?, ?, NOW())";
@@ -227,3 +229,45 @@ async function addToQueue(studentEmail, studentQuestion) {
     }
   }
 }
+
+async function retrieveLatestQueue() {
+  let connection;
+  try {
+    // Establish the database connection first
+    connection = await mysql.connectDatabase();
+
+    const selectQueueQuery = "SELECT Queue.*, Students.name AS student_name FROM Queue JOIN Students ON Queue.student_number = Students.student_number WHERE Queue.queue_number > 0;";
+    const [result] = await connection.execute(selectQueueQuery);
+
+    return result;
+  } catch (err) {
+    console.error('Error during retrieving latest OH queue:', err);
+    throw err;
+  } finally {
+    if (connection) {
+      await mysql.disconnectDatabase(connection);
+    }
+  }
+}
+
+// POST Listener: Retrieve Queue
+// Use POST Listener here so that in the future
+// if we want to add token system for safety, it will be
+// easier to integrate than using GET.
+app.post('/api/getqueue', async (req, res) => {
+  try {
+    const retrieveLatestQueueResult = await retrieveLatestQueue();
+    res.status(200).json({
+      message: "Queue Retrieve Successful!",
+      queue: retrieveLatestQueueResult
+    });
+  } catch (error) {
+    console.error("Error during retrieving OH queue: ", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      errorCode: "SERVER_ERROR"
+    });
+    throw err;
+  }
+});

@@ -6,7 +6,6 @@ const bcrypt = require('bcrypt');
 /* Creating main method only to have an async function wrapping
 the await function
  */
-
 async function main() {
     // Establish database connection first
     const connection = await mysql.connectDatabase();
