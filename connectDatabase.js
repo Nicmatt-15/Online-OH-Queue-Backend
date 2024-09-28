@@ -10,6 +10,7 @@ async function connectDatabase() {
       user: 'Nicmatt',
       password: 'Ketchuplover123!',
       database: 'ohproject',
+      timezone: 'Z'
     });
 
     console.log('Connected to MySQL RDS database!');

@@ -9,10 +9,10 @@ the await function
 async function main() {
     // Establish database connection first
     const connection = await mysql.connectDatabase();
-    const passwordToInsert = await bcrypt.hash("12345", 10);
+    const passwordToInsert = await bcrypt.hash("1234", 10);
     const insertStatement = `INSERT INTO Staff (staff_number, name, email, password) VALUES (?, ?, ?, ?)`;
 
-    const [result] = await connection.execute(insertStatement, [1, "nicmatt", "nicmatt@uw.edu", passwordToInsert]);
+    const [result] = await connection.execute(insertStatement, [2, "memet", "nicholas.suhardi.2002@gmail.com", passwordToInsert]);
 
     console.log(result);
 }

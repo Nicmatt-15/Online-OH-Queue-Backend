@@ -24,3 +24,11 @@ CREATE TABLE Queue (
     FOREIGN KEY (student_number) REFERENCES Students(student_number),
     FOREIGN KEY (staff_number) REFERENCES Staff(staff_number)
 );
+
+CREATE TABLE AvailableTA (
+    staff_number INT PRIMARY KEY,
+    status VARCHAR(255),
+    shift_start_time TIMESTAMP NOT NULL,
+    shift_end_time TIMESTAMP NOT NULL,
+    FOREIGN KEY (staff_number) REFERENCES Staff(staff_number)
+);
