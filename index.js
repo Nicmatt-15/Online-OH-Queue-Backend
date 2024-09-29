@@ -1,6 +1,3 @@
-Updated Backend Code
-javascript
-Copy code
 /* Import Statements */
 const express = require('express');
 const cors = require('cors');
@@ -40,8 +37,12 @@ const io = new Server(server, {
 app.use(express.json());
 
 // Basic route to check if the server is running
-app.get('/', (req, res) => {
+app.get('/test', (req, res) => {
   res.send('Hello from the server!');
+});
+
+app.options('*', (req, res) => {
+  res.sendStatus(200); // Always respond OK to any OPTIONS request
 });
 
 // GET listener
