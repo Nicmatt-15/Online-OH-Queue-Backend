@@ -24,6 +24,9 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+/* Handle Preflight (OPTIONS) Requests */
+app.options('*', cors(corsOptions)); // This will respond to all preflight requests
+
 /* Server setup for socket.io server */
 const server = http.createServer(app);
 const io = new Server(server, {
