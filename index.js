@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 
 /* Allow CORS - Configure it properly for Express */
 const corsOptions = {
-  origin: 'https://nicmatt-15.github.io', // Allow requests from your GitHub Pages site
+  origin: ['https://nicmatt-15.github.io', 'http://localhost:3000'], // Allow requests from your GitHub Pages site
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify the methods you want to allow
   allowedHeaders: ['Content-Type', 'Authorization'], // Add any headers your app requires
   credentials: true // Enable this if you need cookies/auth tokens
@@ -39,10 +39,6 @@ app.use(express.json());
 // Basic route to check if the server is running
 app.get('/test', (req, res) => {
   res.send('Hello from the server!');
-});
-
-app.options('*', (req, res) => {
-  res.sendStatus(200); // Always respond OK to any OPTIONS request
 });
 
 // GET listener
