@@ -8,6 +8,7 @@ OH Queue project found on the following repository:
 1. Implement environment variable for better safety
 2. Implement session for logged in user that can expire
 3. Add API documentation
+4. Implement safety to prevent similar student and staff number
 
 ## Note
 1. If node immediately terminates after being started:

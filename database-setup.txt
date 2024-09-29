@@ -17,7 +17,6 @@ CREATE TABLE Queue (
     queue_number INT,
     student_number INT,
     staff_number INT,
-    question VARCHAR(255),
     request_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assign_time TIMESTAMP NULL DEFAULT NULL,
     finish_time TIMESTAMP NULL DEFAULT NULL,

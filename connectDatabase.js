@@ -13,7 +13,7 @@ async function connectDatabase() {
       timezone: 'Z'
     });
 
-    console.log('Connected to MySQL RDS database!');
+    // console.log('Connected to MySQL RDS database!');
     return connection;
   } catch (err) {
     console.error('Error connecting to the database:', err.stack);
@@ -26,7 +26,7 @@ async function disconnectDatabase(connection) {
     if (connection) {
       try {
         await connection.end();
-        console.log('Database connection terminated.');
+        // console.log('Database connection terminated.');
       } catch (err) {
         console.error('Error terminating the database connection:', err.stack);
         throw err;

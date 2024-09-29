@@ -72,8 +72,10 @@ app.post('/api/login', async (req, res) => {
         await updateAvailableStaffDB(userAlreadyExist.userInfo[0].staff_number, loginStaffStartShiftTime, loginStaffEndShiftTime);
       }
 
+      const user_number = isStaff ? userAlreadyExist.userInfo[0].staff_number : userAlreadyExist.userInfo[0].student_number;
       res.status(200).json({
         message: "Sign-in successful!",
+        user_number: user_number
       });
     } else {
       res.status(401).json({
@@ -82,8 +84,8 @@ app.post('/api/login', async (req, res) => {
         errorCode: "INCORRECT_PASSWORD"
       });
     }
-  } catch (err) {
-    console.error("Error during login process", err);
+  } catch (error) {
+    console.error("Error during login process", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -125,8 +127,8 @@ app.post('/api/signup', async (req, res) => {
         errorCode: "DATABASE_INSERT_FAILED"
       });
     }
-  } catch (err) {
-    console.error("Error during signup process", err);
+  } catch (error) {
+    console.error("Error during signup process", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -158,8 +160,8 @@ async function verifyUser(email, isStaff) {
       userExists: results.length > 0,
       userInfo: results
     };
-  } catch (err) {
-    console.error('Error during verifying user in database:', err);
+  } catch (error) {
+    console.error('Error during verifying user in database:', error);
     throw err;
   } finally {
     if (connection) {
@@ -180,8 +182,8 @@ async function addStudent(studentnum, name, email, password) {
 
     // Return true/false whether the affected row is 1 or not
     return results.affectedRows == 1;
-  } catch (err) {
-    console.error('Error during adding student into database:', err);
+  } catch (error) {
+    console.error('Error during adding student into database:', error);
     throw err;
   } finally {
     if (connection) {
@@ -213,7 +215,7 @@ app.post('/api/joinqueue', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Error during office hour joining process", err);
+    console.error("Error during office hour joining process", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -244,8 +246,8 @@ async function addToQueue(studentEmail, studentQuestion) {
     const [insertQueueResult] = await connection.execute(insertQueueQuery, [highestQueueNumber + 1, studentNumber, studentQuestion]);
 
     return insertQueueResult.affectedRows == 1;
-  } catch (err) {
-    console.error('Error during adding student into OH queue:', err);
+  } catch (error) {
+    console.error('Error during adding student into OH queue:', error);
     throw err;
   } finally {
     if (connection) {
@@ -264,8 +266,8 @@ async function retrieveLatestQueue() {
     const [result] = await connection.execute(selectQueueQuery);
 
     return result;
-  } catch (err) {
-    console.error('Error during retrieving latest OH queue:', err);
+  } catch (error) {
+    console.error('Error during retrieving latest OH queue:', error);
     throw err;
   } finally {
     if (connection) {
@@ -286,7 +288,7 @@ app.post('/api/getqueue', async (req, res) => {
       queue: retrieveLatestQueueResult
     });
   } catch (error) {
-    console.error("Error during retrieving OH queue: ", err);
+    console.error("Error during retrieving OH queue: ", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -308,7 +310,7 @@ app.post('/api/getavailableta', async (req, res) => {
       available_ta: retrieveLatestAvailableTAResult
     });
   } catch (error) {
-    console.error("Error during retrieving Available TA: ", err);
+    console.error("Error during retrieving Available TA: ", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -319,8 +321,13 @@ app.post('/api/getavailableta', async (req, res) => {
 });
 
 async function updateAvailableStaffDB(staffNumber, startShiftTime, endShiftTime) {
-  let formattedStartShiftTime = startShiftTime.replace('T', ' ') + ':00';
-  let formattedEndShiftTime = endShiftTime.replace('T', ' ') + ':00';
+  const startShiftTimeObject = new Date(startShiftTime);
+  const endShiftTimeObject = new Date(endShiftTime);
+  const startShiftTimeUTC = startShiftTimeObject.toISOString();
+  const endShiftTimeUTC = endShiftTimeObject.toISOString();
+
+  let formattedStartShiftTime = startShiftTimeUTC.slice(0, 19).replace('T', ' ');
+  let formattedEndShiftTime = endShiftTimeUTC.slice(0, 19).replace('T', ' ');
 
   let connection;
   try {
@@ -345,11 +352,11 @@ async function updateAvailableStaffDB(staffNumber, startShiftTime, endShiftTime)
     }
 
     const insertAvailableStaffQuery = `INSERT INTO AvailableTA (staff_number, status, shift_start_time, shift_end_time) VALUES (?, ?, ?, ?)`;
-    const [insertAvailableStaffResult] = await connection.execute(insertAvailableStaffQuery, [staffNumber, "Available", formattedStartShiftTime, formattedEndShiftTime]);
+    const [insertAvailableStaffResult] = await connection.execute(insertAvailableStaffQuery, [staffNumber, staffStatus, formattedStartShiftTime, formattedEndShiftTime]);
 
     return insertAvailableStaffResult.affectedRows == 1;
-  } catch (err) {
-    console.error('Error during updating Available Staff:', err);
+  } catch (error) {
+    console.error('Error during updating Available Staff:', error);
     throw err;
   } finally {
     if (connection) {
@@ -368,8 +375,164 @@ async function retrieveLatestAvailableTA() {
     const [result] = await connection.execute(selectAvailableTAQuery);
 
     return result;
-  } catch (err) {
-    console.error('Error during retrieving latest Available TA:', err);
+  } catch (error) {
+    console.error('Error during retrieving latest Available TA:', error);
+    throw err;
+  } finally {
+    if (connection) {
+      await mysql.disconnectDatabase(connection);
+    }
+  }
+}
+
+// POST Listener: Staff Helping Student
+app.post('/api/helpstudent', async (req, res) => {
+  const {queueNumber, staffEmail} = req.body;
+
+  try {
+    const updateOnStudentHelpResult = await updateOnStudentHelp(queueNumber, staffEmail);
+    if (updateOnStudentHelpResult.updateSuccessful) {
+      // Retrieve the updated queue and available TA
+      const latestQueue = await retrieveLatestQueue();
+      const latestAvailableTA = await retrieveLatestAvailableTA();
+
+      // Emit to student that they are being helped
+      io.to(userSocketMap[updateOnStudentHelpResult.student_email]).emit('helpIncoming', {});
+
+      res.status(200).json({
+        message: "Queue Help Confirmation Successful!",
+      });
+
+      // Emit to other the rest of the user online about
+      // the update in queue table and available ta
+      io.emit('newStudentHelped', {latestQueue, latestAvailableTA});
+    }
+  } catch (error) {
+    console.error("Error during TA helping student confirmation: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      errorCode: "SERVER_ERROR"
+    });
+    throw err;
+  }
+});
+
+async function updateOnStudentHelp(queueNumber, staffEmail) {
+  let connection;
+
+  try {
+    // Establish the database connection first
+    connection = await mysql.connectDatabase();
+
+    // Get the staff number related to the staff email first
+    const getStaffNumberQuery = `SELECT staff_number FROM Staff WHERE email = ?`;
+    const [getStaffNumberResult] = await connection.execute(getStaffNumberQuery, [staffEmail]);
+
+    // Verify that the queue doesn't already have a TA assigned to it
+    // Also get the student email here related to the queue since
+    // we will use that later.
+    const checkQueueStatusQuery = `SELECT student_number, assign_time FROM Queue WHERE queue_number = ?`;
+    const [checkQueueStatusResult] = await connection.execute(checkQueueStatusQuery, [queueNumber]);
+
+    if (checkQueueStatusResult[0].assign_time != null) {
+      console.error(`Queue number ${queueNumber} is already being helped.`);
+      throw err;
+    }
+
+    // Getting the student email with the student number from above
+    const getStudentEmailQuery = `SELECT email from Students WHERE student_number = ?`;
+    const [getStudentEmailResult] = await connection.execute(getStudentEmailQuery, [(checkQueueStatusResult[0].student_number)]);
+
+    // Update the queue first
+    const updateQueueQuery = `UPDATE Queue SET staff_number = ?, assign_time = NOW() WHERE queue_number = ?`;
+    const [updateQueueResult] = await connection.execute(updateQueueQuery, [getStaffNumberResult[0].staff_number, queueNumber]);
+
+    // Update the TA availability next
+    const availableTAUpdateQuery = `UPDATE AvailableTA SET status = "Helping" WHERE staff_number = ?`;
+    const [availableTAUpdateResult] = await connection.execute(availableTAUpdateQuery, [getStaffNumberResult[0].staff_number]);
+
+    return {
+      updateSuccessful: (updateQueueResult.affectedRows == 1 && availableTAUpdateResult.affectedRows == 1),
+      student_email: (getStudentEmailResult[0].email)
+    };
+  } catch (error) {
+    console.error('Error during comfirming TA helping student:', error);
+    throw err;
+  } finally {
+    if (connection) {
+      await mysql.disconnectDatabase(connection);
+    }
+  }
+}
+
+/* POST Listener: Staff Helping Student */
+app.post('/api/finishhelpingstudent', async (req, res) => {
+  const {queueNumber, staffEmail} = req.body;
+
+  try {
+    const updateOnFinishHelpResult = await updateOnFinishHelp(queueNumber, staffEmail);
+    if (updateOnFinishHelpResult) {
+      // Retrieve the updated queue and available TA
+      const latestQueue = await retrieveLatestQueue();
+      const latestAvailableTA = await retrieveLatestAvailableTA();
+
+      res.status(200).json({
+        message: "Queue Finish Helping Confirmation Successful!",
+      });
+
+      // Emit to other the rest of the user online about
+      // the update in queue table and available ta
+      io.emit('newStudentFinish', {latestQueue, latestAvailableTA});
+    }
+  } catch (error) {
+    console.error("Error during TA finish helping student confirmation: ", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      errorCode: "SERVER_ERROR"
+    });
+    throw err;
+  }
+});
+
+async function updateOnFinishHelp(queueNumber, staffEmail) {
+  let connection;
+
+  try {
+    // Establish the database connection first
+    connection = await mysql.connectDatabase();
+
+    // Get the staff number related to the staff email first
+    const getStaffNumberQuery = `SELECT staff_number FROM Staff WHERE email = ?`;
+    const [getStaffNumberResult] = await connection.execute(getStaffNumberQuery, [staffEmail]);
+
+    // We update the queue database.
+    // Set the queue_number to -1 and put
+    // a finish time.
+    const updateQueueQuery = `UPDATE Queue SET queue_number = -1, finish_time = NOW() WHERE queue_number = ?`;
+    const [updateQueueResult] = await connection.execute(updateQueueQuery, [queueNumber]);
+
+    // We update the staff available database
+    // by checking if there's any active queue with the staff number.
+    // If yes, don't change the status of the TA. If not, change the
+    // status of the TA to available.
+    const checkActiveQueueQuery = `SELECT * FROM Queue WHERE queue_number > 0 AND staff_number = ?`;
+    const [checkActiveQueueResult] = await connection.execute(checkActiveQueueQuery, [getStaffNumberResult[0].staff_number]);
+
+    // If there's no active queue under the current TA number
+    let updateAvailableStaffSuccess = true;
+    if (checkActiveQueueResult.length === 0) {
+      // Update the database
+      const updateAvailableStaffQuery = `UPDATE AvailableTA SET status = "Available" WHERE staff_number = ?`;
+      const [updateAvailableStaffResult] = await connection.execute(updateAvailableStaffQuery, [getStaffNumberResult[0].staff_number]);
+
+      updateAvailableStaffSuccess = updateAvailableStaffResult.affectedRows == 1;
+    }
+
+    return updateQueueResult.affectedRows == 1 && updateAvailableStaffSuccess;
+  } catch (error) {
+    console.error('Error during TA finishing helping student:', error);
     throw err;
   } finally {
     if (connection) {
@@ -379,8 +542,15 @@ async function retrieveLatestAvailableTA() {
 }
 
 /* socket.io Listener Setup Related Code */
+// This maps user number to socket map
+const userSocketMap = {};
+
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  // Register the user ID when the frontend emits it
+  socket.on('registerUser', (userId) => {
+    userSocketMap[userId] = socket.id; // Map userId with socket.id
+    console.log(`User registered: ${userId} with socket ID: ${socket.id}`);
+  });
 
   // Handles when a staff logs in
   socket.on('newAvailableTA', async(user) => {
