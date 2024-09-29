@@ -1,3 +1,6 @@
+Updated Backend Code
+javascript
+Copy code
 /* Import Statements */
 const express = require('express');
 const cors = require('cors');
@@ -11,8 +14,15 @@ const { start } = require('repl');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* Allow CORS */
-app.use(cors());
+/* Allow CORS - Configure it properly for Express */
+const corsOptions = {
+  origin: 'https://nicmatt-15.github.io', // Allow requests from your GitHub Pages site
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify the methods you want to allow
+  allowedHeaders: ['Content-Type', 'Authorization'], // Add any headers your app requires
+  credentials: true // Enable this if you need cookies/auth tokens
+};
+
+app.use(cors(corsOptions));
 
 /* Server setup for socket.io server */
 const server = http.createServer(app);
