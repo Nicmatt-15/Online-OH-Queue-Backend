@@ -162,7 +162,7 @@ async function verifyUser(email, isStaff) {
     };
   } catch (error) {
     console.error('Error during verifying user in database:', error);
-    throw err;
+    throw error;
   } finally {
     if (connection) {
       await mysql.disconnectDatabase(connection);
